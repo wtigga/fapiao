@@ -7,10 +7,8 @@ import fitz
 from PIL import Image
 import os
 import PIL
-import glob
 PIL.Image.ANTIALIAS = PIL.Image.LANCZOS   #  this is a workaround for outdated EasyOCR library
 # https://github.com/JaidedAI/EasyOCR/issues/1077
-from pathlib import Path  # Import pathlib
 from openpyxl import Workbook
 import uuid
 import xlsxwriter
@@ -19,8 +17,7 @@ import tkinter as tk
 import threading
 from tkinter import filedialog, messagebox, ttk
 import webbrowser
-
-
+import shutil
 
 
 def current_datetime_string():
@@ -32,9 +29,8 @@ def current_datetime_string():
 script_name = 'Fapiao OCR'
 script_version = '0.1'
 script_title = f"{script_name}, ver.{script_version}"
-source_language = 'ch_sim'  # language code convention as defined in EasyOCR
-source_folder = 'input'
-source_folder = Path(source_folder)
+source_language = 'ch_sim'  # language code for Chinese Simplified convention as defined in EasyOCR
+source_folder = ''
 current_time = current_datetime_string()
 output_name_part = 'List of Fapiaos'
 output_file = f'{output_name_part}_{current_time}.xlsx'
@@ -58,25 +54,27 @@ def get_files_in_folder_with_extensions(folder_path, allowed_extensions):
     return matching_files
 
 def extract_numbers_from_image(image_path, max_rotation_attempts=3):
-    # extracting
-    image_path = Path(image_path)
-    
     # Create a 'temp' subfolder if it doesn't exist
-    temp_folder = Path("temp")
-    temp_folder.mkdir(parents=True, exist_ok=True)
+    current_directory = os.getcwd()
+    temp_folder_short_name = "temp"
+    temp_folder = os.path.join(current_directory, temp_folder_short_name)
+    try:
+        os.makedirs(temp_folder)
+    except:
+        print("Folder already exist")
     
-    if not image_path.is_file():
-        print(f"File not found: {str(image_path)}")
+    if not os.path.exists(image_path):
+        print(f"File not found: {image_path}")
         return None
 
     # Check if the filename contains non-ASCII characters
-    if not all(ord(char) < 128 for char in image_path.name):
+    if not all(ord(char) < 128 for char in image_path):
         # Generate a unique name for the temporary copy
         temp_filename = f"{uuid.uuid4()}.png"
-        temp_path = temp_folder / temp_filename
+        temp_path = os.path.join(temp_folder, temp_filename)
         
         # Create a temporary copy of the image with a unique name
-        image_path.rename(temp_path)
+        shutil.copy(image_path, temp_path)
         
         # Set image_path to the temporary copy for OCR
         image_path = temp_path
@@ -84,10 +82,10 @@ def extract_numbers_from_image(image_path, max_rotation_attempts=3):
     rotation_attempts = 0
     # rotate a few times if no sum is found on the first try - what if the image is upside down?
     while rotation_attempts < max_rotation_attempts:
-        print(f"Performing OCR on {str(image_path)} (Attempt {rotation_attempts + 1})...")
+        print(f"Performing OCR on {image_path} (Attempt {rotation_attempts + 1})...")
 
 
-        image = cv2.imread(str(image_path))
+        image = cv2.imread(image_path)
 
         # Get the dimensions of the image
         image_height, image_width, _ = image.shape
@@ -119,7 +117,6 @@ def extract_numbers_from_image(image_path, max_rotation_attempts=3):
     
     # If all attempts fail, return None
     return None
-
 
 def save_to_xlsx(data, filename):
     if not data:
@@ -160,50 +157,54 @@ def save_to_xlsx(data, filename):
         # Close the workbook
         workbook.close()
 
+def sum_dict_values(input_dict):
+    total = 0
+    for value in input_dict.values():
+        if isinstance(value, (int, float)):
+            total += value
+    return total
+
 def fapiao_ocr():
 
     result_dict = {}
 
-    for image_path in source_folder.glob('*.*'):
-        if image_path.suffix.lower() == '.pdf':
-            pdf_document = fitz.open(image_path)
+    for file_name in os.listdir(source_folder):
+        file_path = os.path.join(source_folder, file_name)
+        file_extension = os.path.splitext(file_name)[1].lower()
+        if file_name.lower().endswith('.pdf'):
+            pdf_path = os.path.join(source_folder, file_name)
+            pdf_document = fitz.open(pdf_path)
             for page_number in range(pdf_document.page_count):
                 page = pdf_document.load_page(page_number)
                 
                 dpi = 150  # too large files takes longer to scan, 150 is enough
                 image_list = page.get_pixmap(matrix=fitz.Matrix(dpi/72, dpi/72))
                 
-                jpg_file = f"{image_path.stem}_page_{page_number + 1}.jpg"
-                jpg_path = source_folder / jpg_file
+                jpg_file = f"{file_name}_page_{page_number + 1}.jpg"
+                jpg_path = os.path.join(source_folder, jpg_file)
                 img = Image.frombytes("RGB", [image_list.width, image_list.height], image_list.samples)
                 img.save(jpg_path)
                 
                 # Convert jpg_path to a string before passing to cv2.imread
-                extracted_value = extract_numbers_from_image(str(jpg_path))
+                extracted_value = extract_numbers_from_image(jpg_path)
                 if extracted_value is not None:
                     try:
-                        result_dict[image_path.name] = float(extracted_value)
+                        result_dict[os.path.basename(file_name)] = float(extracted_value)
                     except:
-                        result_dict[image_path.name] = extracted_value
+                        result_dict[os.path.basename(file_name)] = extracted_value
                 try:
                     os.remove(jpg_path)
                 except:
                     print("Temp file wasn't removed.")
-        elif image_path.suffix.lower() in (ocr_extensions_img):
+        elif file_extension in ocr_extensions_img:
             # Convert image_path to a string before passing to extract_numbers_from_image
-            extracted_value = extract_numbers_from_image(str(image_path))
+            extracted_value = extract_numbers_from_image(file_path)
             if extracted_value is not None:
                 try:
-                    result_dict[image_path.name] = float(extracted_value)
+                    result_dict[file_name] = float(extracted_value)
                 except:
-                    result_dict[image_path.name] = extracted_value
+                    result_dict[file_name] = extracted_value
     return result_dict
-
-
-
-
-# Print the total run time
-#
 
 
 
@@ -221,15 +222,15 @@ def enable_all_buttons():
 # Function to be executed when the "RUN" button is clicked
 def run_script():
     # Record the start time
-    start_time = time.time()
     disable_all_buttons()
     
     def main_logic():
         print("Running OCR on files...")
         try:
+            start_time = time.time()
             result = fapiao_ocr()
             if not result:
-                messagebox.showinfo("Nothing found", f"No sums found in source files, try another folder")
+                messagebox.showerror("Nothing found", "No sums found in source files, try another folder")
                 enable_all_buttons()
             else:
                 print("Saving to XLSX...")
@@ -237,7 +238,12 @@ def run_script():
                 # You can place your script code here
                 print("Done")
                 enable_all_buttons()
-                messagebox.showinfo("Complete", f"Report has been saved, files processed: {number_of_files}, report is in the file {output_file} next to this script.")
+    
+                end_time = time.time()
+                total_time = end_time - start_time
+                print(f"Total run time: {total_time:.2f} seconds")
+                fapiao_sum = sum_dict_values(result) 
+                messagebox.showinfo("Complete", f"Report has been saved, files processed: {number_of_files}.\nTotal sum: {fapiao_sum} RMB.\nReport is in the file {output_file} next to this script.\nIt took {int(total_time)} seconds for OCR.")
         except Exception as exp:
             # Show popup window with error message
             messagebox.showerror("Error", str(exp))
@@ -248,11 +254,7 @@ def run_script():
     except Exception as exp:
         # Show popup window with error message
         messagebox.showerror("Error", str(exp))
-    # Record the end time
-    end_time = time.time()
-    # Calculate the total run time
-    total_time = end_time - start_time
-    print(f"Total run time: {total_time:.2f} seconds") 
+
 
    
 
@@ -276,10 +278,15 @@ def browse_folder():
         global source_folder
         source_folder = filedialog.askdirectory()
         list_of_files = get_files_in_folder_with_extensions(source_folder, all_extensions)
-        print(list_of_files)
-        source_folder = Path(source_folder)
+        nice_list_of_files = '\n'.join(list_of_files)
         source_folder_var.set(source_folder)
         number_of_files = len(list_of_files)
+        if not list_of_files:
+            messagebox.showerror(f"No files found", f"The selected folder doesn't contain any PDF, JPG, JPEG, or PNG files to scan. Please select another folder.")
+        elif number_of_files > 100:
+            messagebox.showinfo(f"Too many files: {number_of_files}", f"There's a lot of images in this folder, scanning will take a while. The list of files:\n\n{nice_list_of_files}.\n\nIf it's OK, press 'RUN' button.")
+        else:
+            messagebox.showinfo(f"Files found: {number_of_files}", f"Following files will be scanned for Fapiao information:\n\n{nice_list_of_files}\n\nIf it's OK, press 'RUN' button.")
         enable_all_buttons()
 
     main_thread = threading.Thread(target=main_logic)
