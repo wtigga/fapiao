@@ -18,6 +18,9 @@ Key Features:
 * The script is equipped to handle rotation attempts for better OCR results.
 * It provides a graphical user interface (GUI) for easy interaction with the user.
 
+![fapiao_01](https://github.com/wtigga/fapiao/assets/7037184/a3ba63c9-504d-48f7-b963-5547c7eed82d)
+
+
 ## 2. Limitations
 While the "Fapiao OCR" script is a helpful tool for automating invoice data extraction, it has certain limitations:
 
