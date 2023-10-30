@@ -72,3 +72,14 @@ The "Fapiao OCR" script relies on the following libraries and modules:
 Sample report:
 
 ![image](https://github.com/wtigga/fapiao/assets/7037184/a904e687-586c-4f89-a0d1-b25a6baf26fe)
+
+# 5. Compile into *.exe
+Use Pyinstaller to make it a convenient Windows EXE file and avoid messing with Python.
+pyinstaller --onefile --noconsole --hidden-import=xlsxwriter --name fapiao main.py
+
+Keep in mind that the resulting EXE will be around ~250 MB in size and might trigger a warning on another machine.
+
+# 6. Windows Download
+Pre-compiled files can be found here:
+https://mega.nz/file/DuhBjAQD#vshFXv96SyHfxd1z_9ALOWupW-D3Js1cKdXenKzdzPw
+Unpack and run 'fapiao.exe'
