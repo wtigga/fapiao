@@ -82,4 +82,4 @@ Keep in mind that the resulting EXE will be around ~250 MB in size and might tri
 # 6. Windows Download
 Pre-compiled files can be found here:
 https://mega.nz/file/DuhBjAQD#vshFXv96SyHfxd1z_9ALOWupW-D3Js1cKdXenKzdzPw
-Unpack and run 'fapiao.exe'
+Unpack and run 'fapiao.exe'.
