@@ -1,6 +1,6 @@
 # Fapiao OCR - Invoice Information Extraction
 
-![image](https://github.com/wtigga/fapiao/assets/7037184/460b6100-2dab-4322-a768-be70644497d6)
+![image](https://github.com/wtigga/fapiao/assets/7037184/c21e709d-1c82-452a-a8a6-0b17c50505f3)
 
 ## 1. What It Does
 
