@@ -14,6 +14,7 @@ import threading
 from tkinter import filedialog, messagebox, ttk
 import webbrowser
 import shutil
+import subprocess
 
 PIL.Image.ANTIALIAS = (
     PIL.Image.LANCZOS
@@ -336,14 +337,18 @@ def run_script():
                 end_time = time.time()
                 total_time = end_time - start_time
                 print(f"Total run time: {total_time:.2f} seconds")
-                fapiao_sum = sum_dict_values(result)
+                fapiao_sum = round(sum_dict_values(result), 2)
                 messagebox.showinfo(
                     "Complete",
                     f"Report has been saved, files processed: {number_of_files}."
-                    f"\nTotal sum: {fapiao_sum} RMB."
-                    f"\nReport is in the file {output_file} next to this script."
-                    f"\nIt took {int(total_time)} seconds for OCR."
+                    f"\n\nTotal sum: {fapiao_sum} RMB."
+                    f"\n\nSee the report in {output_file} in the same folder as the script."
+                    f"\n\nIt took just {int(total_time)} seconds!"
                 )
+                try:
+                    subprocess.Popen([output_file], shell=True)
+                except Exception as e:
+                    print(f"An error occurred: {e}")
                 if not sum_not_found_files:
                     pass
                 else:
@@ -409,12 +414,17 @@ def browse_folder():
         elif number_of_files > 100:
             messagebox.showinfo(
                 f"Too many files: {number_of_files}",
-                f"There's a lot of images in this folder, scanning will take a while. The list of files:\n\n{nice_list_of_files}.\n\nIf it's OK, press 'RUN' button.",
+                f"There's a lot of images in this folder, scanning will take a while. The list of files:"
+                f"\n\n{nice_list_of_files}."
+                f"\n\nThis will take about {number_of_files * 3} seconds to process."
+                f"\n\nIf it's OK, press 'RUN' button.",
             )
         else:
             messagebox.showinfo(
                 f"Files found: {number_of_files}",
-                f"Following files will be scanned for Fapiao information:\n\n{nice_list_of_files}\n\nIf it's OK, press 'RUN' button.",
+                f"Following files will be scanned for Fapiao information:\n\n{nice_list_of_files}"
+                f"\n\nThis will take about {number_of_files * 3} seconds to process."
+                f"\n\nIf it's OK, press 'RUN' button.",
             )
         enable_all_buttons()
 
