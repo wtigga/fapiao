@@ -18,6 +18,8 @@ import shutil
 PIL.Image.ANTIALIAS = (
     PIL.Image.LANCZOS
 )
+
+
 #  this is a workaround for outdated EasyOCR library
 # https://github.com/JaidedAI/EasyOCR/issues/1077
 
@@ -29,7 +31,8 @@ def current_datetime_string():
 
 
 script_name = "Fapiao OCR"
-script_version = "0.2"
+script_version = "0.3"
+script_date = "2023-10-31"  # last update
 script_title = f"{script_name}, ver.{script_version}"
 source_language = (
     "ch_sim"  # language code for Chinese Simplified convention as defined in EasyOCR
@@ -48,6 +51,9 @@ all_extensions = ocr_extensions_img + pdf_extensions
 progress_bar_total = 100
 progress_bar_current = 0
 
+sum_not_found_files = []
+
+
 def get_files_in_folder_with_extensions(folder_path, allowed_extensions):
     # Initialize an empty list to store the matching file names
     matching_files = []
@@ -58,7 +64,7 @@ def get_files_in_folder_with_extensions(folder_path, allowed_extensions):
         for filename in os.listdir(folder_path):
             # Check if the item is a file and has the allowed extensions
             if os.path.isfile(
-                os.path.join(folder_path, filename)
+                    os.path.join(folder_path, filename)
             ) and filename.lower().endswith(tuple(allowed_extensions)):
                 matching_files.append(filename)
 
@@ -97,8 +103,8 @@ def find_closest_value_on_same_y(results, target_text, value_regex):
                 )
                 # Check if the Y-axis position is within a margin of 3-5 pixels
                 if (
-                    target_y1 - 5 <= y1 <= target_y2 + 5
-                    and target_y1 - 5 <= y2 <= target_y2 + 5
+                        target_y1 - 5 <= y1 <= target_y2 + 5
+                        and target_y1 - 5 <= y2 <= target_y2 + 5
                 ):
                     matching_values.append((coords, text, x1))
 
@@ -110,7 +116,10 @@ def find_closest_value_on_same_y(results, target_text, value_regex):
     return "0"
 
 
-def extract_numbers_from_image(image_path, max_rotation_attempts=3):
+def extract_numbers_from_image(image_path):
+    file_name_for_report = os.path.basename(image_path)
+    max_rotation_attempts = 3
+    global sum_not_found_files
     # Create a 'temp' subfolder if it doesn't exist
     current_directory = os.getcwd()
     temp_folder_short_name = "temp"
@@ -157,7 +166,7 @@ def extract_numbers_from_image(image_path, max_rotation_attempts=3):
         results = reader.readtext(gray)
         # print(results)
 
-        print(f"Searching for the SUM in {str(image_path)}...")
+        print(f"Searching for the SUM in {str(os.path.basename(image_path))}...")
 
         for result in results:
             text = result[1]  # Extract the text from the result
@@ -178,6 +187,8 @@ def extract_numbers_from_image(image_path, max_rotation_attempts=3):
         rotation_attempts += 1
 
     # If all attempts fail, return None
+    sum_not_found_files.append(file_name_for_report)
+    print(f"No sum found in {file_name_for_report}")
     return None
 
 
@@ -300,10 +311,12 @@ def enable_all_buttons():
 
 # Function to be executed when the "RUN" button is clicked
 def run_script():
+    global sum_not_found_files
     # Record the start time
     disable_all_buttons()
 
     def main_logic():
+        global sum_not_found_files
         print("Running OCR on files...")
         try:
             start_time = time.time()
@@ -326,8 +339,20 @@ def run_script():
                 fapiao_sum = sum_dict_values(result)
                 messagebox.showinfo(
                     "Complete",
-                    f"Report has been saved, files processed: {number_of_files}.\nTotal sum: {fapiao_sum} RMB.\nReport is in the file {output_file} next to this script.\nIt took {int(total_time)} seconds for OCR.",
+                    f"Report has been saved, files processed: {number_of_files}."
+                    f"\nTotal sum: {fapiao_sum} RMB."
+                    f"\nReport is in the file {output_file} next to this script."
+                    f"\nIt took {int(total_time)} seconds for OCR."
                 )
+                if not sum_not_found_files:
+                    pass
+                else:
+                    messagebox.showinfo(
+                        f"Files without sums: {len(sum_not_found_files)}",
+                        f"\nNo SUM found in {len(sum_not_found_files)} file(s):\n"
+                        f"\n{file_list_to_string(sum_not_found_files)}"
+                    )
+                sum_not_found_files = []  # reset the list of files where nothing was found
         except Exception as exp:
             # Show popup window with error message
             messagebox.showerror("Error", str(exp))
@@ -343,7 +368,7 @@ def run_script():
 
 # Create the main window
 root = tk.Tk()
-root.geometry("290x130")
+root.geometry("300x150")
 root.title(script_title)
 
 # Create the "RUN" button and associate it with the run_script function
@@ -351,6 +376,11 @@ run_button = tk.Button(root, text="RUN", command=run_script)
 run_button.grid(row=0, column=1, ipadx=10, ipady=10, padx=10, pady=10)
 
 number_of_files = 0
+
+
+def file_list_to_string(incoming_list):
+    incoming_list = "\n".join(incoming_list)
+    return incoming_list
 
 
 def browse_folder():
@@ -368,7 +398,7 @@ def browse_folder():
         )
         progress_bar_total = len(list_of_files)
         set_total_length(progress_bar_total)
-        nice_list_of_files = "\n".join(list_of_files)
+        nice_list_of_files = file_list_to_string(list_of_files)
         source_folder_var.set(source_folder)
         number_of_files = len(list_of_files)
         if not list_of_files:
@@ -407,7 +437,8 @@ def open_url(url):
 
 about_label = tk.Label(
     root,
-    text="github.com/wtigga/fapiao",
+    text=f"github.com/wtigga/fapiao\n"
+         f"{script_date}",
     fg="blue",
     cursor="hand2",
     justify="left",
@@ -426,20 +457,14 @@ def set_total_length(new_total_length):
     progress_bar_total = new_total_length
     progress_bar['maximum'] = new_total_length
 
+
 def update_progress_bar():
     # Update the progress bar's value based on progress_bar_current
     progress_bar['value'] = progress_bar_current
     root.update_idletasks()  # Update the GUI to reflect the changes
 
 
-
-
-
-
 # Start the GUI main loop
-
-
-
 
 
 root.mainloop()
